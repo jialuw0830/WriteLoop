@@ -14,6 +14,7 @@
       <div
         class="editor-content"
         :class="{ 'editor-content--empty': isEmpty }"
+        @mouseup="onTextSelect"
       >
         <EditorContent :editor="editor" />
       </div>
@@ -31,6 +32,14 @@
           <div class="suggestion-explain">{{ s.explain }}</div>
         </button>
       </div>
+
+        <!-- 句子重写区域 -->
+        <div v-if="rewrittenSentence" class="rewrite-panel">
+          <div class="rewrite-header">Rewritten Sentence</div>
+          <div class="rewrite-text">{{ rewrittenSentence }}</div>
+          <button @click="clearRewrittenSentence" class="clear-rewrite-btn">Clear</button>
+        </div>
+
     </div>
   </div>
 </template>
@@ -69,6 +78,9 @@ const suggestions = ref<BackendSuggestion[]>([]);
 const isEmpty = computed(() => {
   return !editor.value || editor.value.isEmpty;
 });
+
+// 当前重写后的句子
+const rewrittenSentence = ref<string | null>(null);
 
 // 发送内容到后端（防抖触发）
 let typingTimer: number | undefined;
@@ -145,6 +157,40 @@ function applySuggestion(text: string) {
 
   // 用完建议可以清空，或者保留，看你产品设计
   // suggestions.value = [];
+}
+
+// 监听文本选择（用户选中内容）
+function onTextSelect() {
+  const selectedText = window.getSelection()?.toString();
+  if (selectedText) {
+    rewriteSentence(selectedText);
+  }
+}
+
+function rewriteSentence(selectedText: string) {
+  fetch("http://localhost:8000/rewrite", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sentence: selectedText,
+    }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log(data); // 查看返回的数据，确保数据正确
+      rewrittenSentence.value = data.rewritten; // 确保这个字段是你想显示的
+    })
+    .catch((error) => {
+      console.error("Error rewriting sentence:", error);
+    });
+}
+
+
+// 清空重写句子
+function clearRewrittenSentence() {
+  rewrittenSentence.value = null;
 }
 
 // 销毁时释放资源
@@ -268,5 +314,37 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: #6b7280;
   margin-top: 2px;
+}
+
+/* 重写句子面板 */
+.rewrite-panel {
+  border-top: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  background: #f9fafb;
+}
+
+.rewrite-header {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.rewrite-text {
+  font-size: 14px;
+  color: #111827;
+}
+
+.clear-rewrite-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background: #4CAF50;
+  color: white;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.clear-rewrite-btn:hover {
+  background: #45a049;
 }
 </style>

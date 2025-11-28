@@ -12,6 +12,7 @@
         <Editor />
       </div>
     </main>
+    
   </div>
 </template>
 
@@ -42,6 +43,7 @@ import Editor from "./components/Editor.vue";
 .header-left {
   display: flex;
   flex-direction: column;
+  
 }
 
 .app-title {
