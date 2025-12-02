@@ -4,10 +4,20 @@
     <div class="editor-shell">
       <!-- 顶部小标签 -->
       <div class="editor-header">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="title">WriteLoop Editor</span>
+        <div class="header-left">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="title">WriteLoop Editor</span>
+        </div>
+        <button 
+          class="analyze-btn" 
+          :disabled="isEmpty || isAnalyzing"
+          @click="analyzeLogic"
+        >
+          <span v-if="!isAnalyzing">🔍 Analyze Logic</span>
+          <span v-else>Analyzing...</span>
+        </button>
       </div>
 
       <!-- 真正的 TipTap 编辑区域 -->
@@ -21,7 +31,10 @@
 
       <!-- 建议区域：显示 AI 下文预测 -->
       <div v-if="suggestions.length" class="suggestion-panel">
-        <div class="suggestion-header">AI suggestions</div>
+        <div class="suggestion-header">
+          <span>AI suggestions</span>
+          <button @click="clearSuggestions" class="close-suggestion-btn">×</button>
+        </div>
         <button
           v-for="(s, idx) in suggestions"
           :key="idx"
@@ -44,6 +57,29 @@
           {{ rewrittenData.explanation }}
         </div>
         <button @click="clearRewrittenSentence" class="clear-rewrite-btn">Clear</button>
+      </div>
+
+      <!-- 逻辑分析区域 -->
+      <div v-if="logicAnalysis" class="logic-panel">
+        <div class="logic-header">Logic Analysis</div>
+        <div v-if="logicAnalysis.overall_score !== undefined" class="logic-score-section">
+          <div class="logic-score-label">Score</div>
+          <div class="logic-score-value" :class="getScoreClass(logicAnalysis.overall_score)">
+            {{ logicAnalysis.overall_score }}
+          </div>
+        </div>
+        <div v-if="logicAnalysis.issues && logicAnalysis.issues.length > 0" class="logic-issues">
+          <div 
+            v-for="(issue, idx) in logicAnalysis.issues" 
+            :key="idx" 
+            class="logic-issue-item"
+          >
+            <div class="logic-issue-type">{{ issue.type }}</div>
+            <div class="logic-issue-desc">{{ issue.description }}</div>
+          </div>
+        </div>
+        <div v-if="logicAnalysis.summary" class="logic-summary">{{ logicAnalysis.summary }}</div>
+        <button @click="clearLogicAnalysis" class="clear-logic-btn">Clear</button>
       </div>
     </div>
   </div>
@@ -112,10 +148,26 @@ interface RewriteResponse {
   explanation?: string;
 }
 
+interface LogicIssue {
+  type: string;
+  location: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+}
+
+interface LogicAnalysisResponse {
+  overall_score?: number;
+  issues?: LogicIssue[];
+  summary?: string;
+  error?: string;
+}
+
 // --- 响应式状态 ---
 const editor = ref<Editor | null>(null);
 const suggestions = ref<Suggestion[]>([]);
 const rewrittenData = ref<RewriteResponse | null>(null);
+const logicAnalysis = ref<LogicAnalysisResponse | null>(null);
+const isAnalyzing = ref(false);
 const isEmpty = computed(() => !editor.value || editor.value.isEmpty);
 
 // --- 防抖请求控制 ---
@@ -173,6 +225,10 @@ function applySuggestion(text: string) {
   suggestions.value = [];
 }
 
+function clearSuggestions() {
+  suggestions.value = [];
+}
+
 // 句子重写功能
 function onTextSelect() {
   const selectedText = window.getSelection()?.toString().trim();
@@ -208,6 +264,53 @@ async function rewriteSentence(selectedText: string) {
 
 function clearRewrittenSentence() {
   rewrittenData.value = null;
+}
+
+// 逻辑分析功能
+async function analyzeLogic() {
+  if (!editor.value || isEmpty.value) return;
+  
+  const text = editor.value.getText().trim();
+  if (text.length < 20) {
+    alert("Please enter at least 20 characters before analysis.");
+    return;
+  }
+
+  isAnalyzing.value = true;
+  logicAnalysis.value = null;
+
+  try {
+    const response = await fetch("http://localhost:8000/analyze-logic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Analysis request failed");
+    }
+
+    const data = await response.json();
+    logicAnalysis.value = data;
+  } catch (error) {
+    console.error("Error analyzing logic:", error);
+    logicAnalysis.value = {
+      error: "Analysis failed, please try again.",
+      issues: [],
+    };
+  } finally {
+    isAnalyzing.value = false;
+  }
+}
+
+function clearLogicAnalysis() {
+  logicAnalysis.value = null;
+}
+
+function getScoreClass(score: number): string {
+  if (score >= 80) return "score-high";
+  if (score >= 60) return "score-medium";
+  return "score-low";
 }
 
 // --- 生命周期 ---
@@ -260,10 +363,16 @@ onBeforeUnmount(() => {
 .editor-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   padding: 8px 12px;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dot {
@@ -314,9 +423,34 @@ onBeforeUnmount(() => {
 }
 
 .suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 12px;
   color: #6b7280;
   margin-bottom: 4px;
+}
+
+.close-suggestion-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.close-suggestion-btn:hover {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .suggestion-item {
@@ -392,6 +526,124 @@ onBeforeUnmount(() => {
 }
 
 .clear-rewrite-btn:hover {
+  background: #45a049;
+}
+
+.analyze-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background: #1e40af;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.12s ease;
+}
+
+.analyze-btn:hover:not(:disabled) {
+  background: #1e3a8a;
+}
+
+.analyze-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.logic-panel {
+  border-top: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  background: #f9fafb;
+}
+
+.logic-header {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.logic-score-section {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 8px;
+  border-left: 4px solid #e5e7eb;
+}
+
+.logic-score-label {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logic-score-value {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-high {
+  color: #059669;
+}
+
+.score-medium {
+  color: #d97706;
+}
+
+.score-low {
+  color: #dc2626;
+}
+
+.logic-issues {
+  margin-bottom: 8px;
+}
+
+.logic-issue-item {
+  padding: 10px 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border-left: 3px solid #e5e7eb;
+}
+
+.logic-issue-type {
+  font-size: 13px;
+  color: #1e40af;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.logic-issue-desc {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.logic-summary {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.clear-logic-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background: #4CAF50;
+  color: white;
+  cursor: pointer;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.clear-logic-btn:hover {
   background: #45a049;
 }
 </style>

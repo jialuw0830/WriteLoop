@@ -3,7 +3,7 @@
     <header class="app-header">
       <div class="header-left">
         <h1 class="app-title">WriteLoop</h1>
-        <span class="tagline">AI Writing Assistant</span>
+        <span class="tagline">From first draft to best draft</span>
       </div>
     </header>
 
