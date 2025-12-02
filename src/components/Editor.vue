@@ -47,6 +47,19 @@
       </div>
     </div>
   </div>
+  <div class="debug-panel" style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; font-size: 12px; z-index: 9999;">
+    <video ref="videoRef" autoplay playsinline style="width: 1px; height: 1px; opacity: 0; position: absolute;"></video>
+    
+    <div>System Status: {{ isLoadingModel ? 'Loading Model...' : 'Ready' }}</div>
+    <button @click="toggleMonitoring">Start Focus Cam</button>
+    
+    <div style="margin-top: 5px;">
+        <div>EAR (Eyes): {{ ear.toFixed(3) }}</div>
+        <div>MAR (Mouth): {{ mar.toFixed(3) }}</div>
+        <div v-if="isDrowsy" style="color: red; font-weight: bold;">⚠️ DROWSY! (Sleeping)</div>
+        <div v-if="isYawning" style="color: yellow; font-weight: bold;">🥱 YAWNING!</div>
+    </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -54,6 +67,38 @@ import { onBeforeUnmount, onMounted, ref, computed } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+
+// --- 1. 引入专注度检测模块 (修复点：新增引入) ---
+import { useFaceLandmarks } from '../composables/useFaceLandmarks';
+// import { useActivityMonitor } from '../composables/useActivityMonitor'; // 暂时先注释掉，分步调试
+
+// --- 2. 初始化视觉检测 Hook (修复点：新增解构) ---
+const { 
+  startCamera, 
+  stopCamera, // 记得导出停止方法
+  ear, 
+  mar, 
+  isDrowsy, 
+  isYawning, 
+  isLoadingModel,
+  isCameraOpen 
+} = useFaceLandmarks();
+
+// 绑定模板中的 <video ref="videoRef">
+const videoRef = ref<HTMLVideoElement | null>(null);
+
+// 控制开关
+const toggleMonitoring = () => {
+    if (isCameraOpen.value) {
+        stopCamera();
+    } else {
+        if (videoRef.value) {
+            startCamera(videoRef.value);
+        }
+    }
+};
+
+// --- 下面是你原有的编辑器逻辑，保持不变 ---
 
 // --- 接口定义 ---
 interface Suggestion {
@@ -102,7 +147,6 @@ async function sendSuggestionRequest() {
     }
 
     const data = await response.json();
-    // 确保 suggestions 是数组，最多 3 项
     suggestions.value = (data.suggestions || []).slice(0, 3);
   } catch (error) {
     console.error("Failed to fetch suggestions:", error);
@@ -126,7 +170,7 @@ function applySuggestion(text: string) {
     .focus()
     .insertContent(text + " ")
     .run();
-  suggestions.value = []; // 清空建议
+  suggestions.value = [];
 }
 
 // 句子重写功能
@@ -190,6 +234,8 @@ onBeforeUnmount(() => {
   if (typingTimer) {
     window.clearTimeout(typingTimer);
   }
+  // 停止摄像头，防止内存泄漏
+  stopCamera();
 });
 </script>
 
