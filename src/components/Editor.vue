@@ -100,7 +100,17 @@
             class="logic-issue-item"
           >
             <div class="logic-issue-type">{{ issue.type }}</div>
+            <div class="logic-issue-location" v-if="issue.location">
+              <span class="location-label">位置：</span>{{ issue.location }}
+            </div>
             <div class="logic-issue-desc">{{ issue.description }}</div>
+            <div v-if="issue.example_from_ielts" class="logic-issue-example">
+              <div class="example-label">📚 真题示例：</div>
+              <div class="example-content">{{ issue.example_from_ielts }}</div>
+            </div>
+            <div class="logic-issue-severity" :class="`severity-${issue.severity}`">
+              <span class="severity-label">严重程度：</span>{{ issue.severity === 'high' ? '高' : issue.severity === 'medium' ? '中' : '低' }}
+            </div>
           </div>
         </div>
 
@@ -215,6 +225,7 @@ interface LogicIssue {
   location: string;
   description: string;
   severity: "high" | "medium" | "low";
+  example_from_ielts?: string;  // 真题举例
 }
 
 interface WritingProfile {
@@ -261,7 +272,7 @@ async function sendSuggestionRequest() {
   lastSentText = text;
 
   try {
-    const response = await fetch("http://localhost:8000/suggest", {
+    const response = await fetch("http://localhost:8001/suggest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, cursor: null }),
@@ -313,7 +324,7 @@ function onTextSelect() {
 
 async function rewriteSentence(selectedText: string) {
   try {
-    const response = await fetch("http://localhost:8000/rewrite", {
+    const response = await fetch("http://localhost:8001/rewrite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sentence: selectedText }),
@@ -354,7 +365,7 @@ async function analyzeLogic() {
   logicAnalysis.value = null;
 
   try {
-    const response = await fetch("http://localhost:8000/analyze-logic", {
+    const response = await fetch("http://localhost:8001/analyze-logic", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -690,24 +701,96 @@ onBeforeUnmount(() => {
 }
 
 .logic-issue-item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: #ffffff;
   border-radius: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   border-left: 3px solid #e5e7eb;
+  transition: box-shadow 0.2s;
+}
+
+.logic-issue-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .logic-issue-type {
   font-size: 13px;
   color: #1e40af;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.logic-issue-location {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.location-label {
+  font-weight: 500;
+  color: #9ca3af;
 }
 
 .logic-issue-desc {
   font-size: 12px;
   color: #4b5563;
   line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.logic-issue-example {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
+.example-label {
+  font-size: 11px;
+  color: #1e40af;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.example-content {
+  font-size: 12px;
+  color: #1e3a8a;
+  line-height: 1.6;
+  font-style: italic;
+  padding-left: 4px;
+}
+
+.logic-issue-severity {
+  margin-top: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.severity-label {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.severity-high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.severity-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.severity-low {
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .logic-summary {

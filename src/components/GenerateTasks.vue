@@ -144,7 +144,7 @@ async function generatePracticeTasks() {
   practiceTasks.value = [];
 
   try {
-    const response = await fetch("http://localhost:8000/generate-tasks", {
+    const response = await fetch("http://localhost:8001/generate-tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
