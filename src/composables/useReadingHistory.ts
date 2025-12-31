@@ -1,7 +1,6 @@
 /**
  * Composable for managing reading history
  */
-import { ref } from 'vue';
 
 const READING_HISTORY_KEY = 'ielts_reading_history';
 

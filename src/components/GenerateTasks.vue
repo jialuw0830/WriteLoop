@@ -83,7 +83,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { getApiUrl, config } from '../config';
 import { useTaskHistory } from '../composables/useTaskHistory';
 
@@ -96,7 +96,6 @@ interface PracticeTask {
 }
 
 const route = useRoute();
-const router = useRouter();
 const { addTaskHistory } = useTaskHistory();
 
 const inputText = ref("");

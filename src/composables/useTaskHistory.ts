@@ -1,7 +1,6 @@
 /**
  * Composable for managing practice task history
  */
-import { ref } from 'vue';
 
 export interface TaskHistoryItem {
   created_at: string;

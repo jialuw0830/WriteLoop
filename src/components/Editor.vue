@@ -10,46 +10,41 @@
           <span class="dot"></span>
           <span class="title">WriteLoop Editor</span>
         </div>
-        <button 
-          class="analyze-btn" 
-          :disabled="isEmpty || isAnalyzing"
-          @click="analyzeLogic"
-        >
+
+        <button class="analyze-btn" :disabled="isEmpty || isAnalyzing" @click="analyzeLogic">
           <span v-if="!isAnalyzing">🔍 Analyze Logic</span>
           <span v-else>Analyzing...</span>
         </button>
       </div>
-      <video 
-        ref="videoRef" 
-        autoplay 
-        playsinline 
+
+      <!-- SINGLE hidden video (IMPORTANT: keep only one ref="videoRef") -->
+      <video
+        ref="videoRef"
+        autoplay
+        playsinline
         muted
         style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;"
       ></video>
 
       <div class="focus-status-bar" :class="{ 'status-warning': focusStatus !== 'Focused' }">
-          <div class="status-left">
-              <span class="status-dot" :class="focusStatusColor"></span>
-              <span class="status-text">Status: {{ focusStatus }}</span>
-          </div>
-          
-          <div class="status-right">
-            <button @click="toggleFocusMode" class="toggle-btn">
-                {{ isCameraOpen ? 'Stop Focus Cam' : 'Start Focus Cam' }}
-            </button>
-            <span v-if="isCameraOpen" class="debug-info">
-                EAR: {{ ear.toFixed(2) }} | MAR: {{ mar.toFixed(2) }}
-            </span>
-          </div>
+        <div class="status-left">
+          <span class="status-dot" :class="focusStatusColor"></span>
+          <span class="status-text">Status: {{ focusStatus }}</span>
+        </div>
+
+        <div class="status-right">
+          <button @click="toggleMonitoring" class="toggle-btn">
+            {{ isCameraOpen ? "Stop Focus Cam" : "Start Focus Cam" }}
+          </button>
+          <span v-if="isCameraOpen" class="debug-info">
+            EAR: {{ (ear ?? 0).toFixed(2) }} | MAR: {{ (mar ?? 0).toFixed(2) }}
+          </span>
+        </div>
       </div>
 
       <!-- Main TipTap editor area -->
-      <div
-        class="editor-content"
-        :class="{ 'editor-content--empty': isEmpty }"
-        @mouseup="onTextSelect"
-      >
-        <EditorContent :editor="editor" />
+      <div class="editor-content" :class="{ 'editor-content--empty': isEmpty }" @mouseup="onTextSelect">
+        <EditorContent v-if="editor" :editor="editor" />
       </div>
 
       <!-- Suggestion area: AI next-phrase suggestions -->
@@ -58,6 +53,7 @@
           <span>AI suggestions</span>
           <button @click="clearSuggestions" class="close-suggestion-btn">×</button>
         </div>
+
         <button
           v-for="(s, idx) in suggestions"
           :key="idx"
@@ -73,12 +69,15 @@
       <div v-if="rewrittenData && !logicAnalysis" class="rewrite-panel">
         <div class="rewrite-header">Rewritten Sentence</div>
         <div class="rewrite-text">{{ rewrittenData.rewritten }}</div>
+
         <div v-if="rewrittenData.technique" class="rewrite-technique">
           Technique: {{ rewrittenData.technique }}
         </div>
+
         <div v-if="rewrittenData.explanation" class="rewrite-explain">
           {{ rewrittenData.explanation }}
         </div>
+
         <div class="rewrite-actions">
           <button @click="applyRewrittenSentence" class="apply-rewrite-btn">Apply</button>
           <button @click="clearRewrittenSentence" class="clear-rewrite-btn">Clear</button>
@@ -97,22 +96,25 @@
         </div>
 
         <div v-if="logicAnalysis.issues && logicAnalysis.issues.length > 0" class="logic-issues">
-          <div 
-            v-for="(issue, idx) in logicAnalysis.issues" 
-            :key="idx" 
-            class="logic-issue-item"
-          >
+          <div v-for="(issue, idx) in logicAnalysis.issues" :key="idx" class="logic-issue-item">
             <div class="logic-issue-type">{{ issue.type }}</div>
+
             <div class="logic-issue-location" v-if="issue.location">
               <span class="location-label">位置：</span>{{ issue.location }}
             </div>
+
             <div class="logic-issue-desc">{{ issue.description }}</div>
+
             <div v-if="issue.example_from_ielts" class="logic-issue-example">
               <div class="example-label">📚 真题示例：</div>
               <div class="example-content">{{ issue.example_from_ielts }}</div>
             </div>
+
             <div class="logic-issue-severity" :class="`severity-${issue.severity}`">
-              <span class="severity-label">严重程度：</span>{{ issue.severity === 'high' ? '高' : issue.severity === 'medium' ? '中' : '低' }}
+              <span class="severity-label">严重程度：</span>
+              {{
+                issue.severity === "high" ? "高" : issue.severity === "medium" ? "中" : "低"
+              }}
             </div>
           </div>
         </div>
@@ -121,99 +123,91 @@
           {{ logicAnalysis.summary }}
         </div>
 
-        <!-- Manually trigger personalized practice task generation -->
-        <button class="generate-task-btn" @click="generatePracticeTasks">
-          🎯 Generate Practice Tasks
-        </button>
+        <button class="generate-task-btn" @click="generatePracticeTasks">🎯 Generate Practice Tasks</button>
 
         <button @click="clearLogicAnalysis" class="clear-logic-btn">Clear</button>
       </div>
     </div>
   </div>
-  <div class="debug-panel" style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; font-size: 12px; z-index: 9999;">
-    <video ref="videoRef" autoplay playsinline style="width: 1px; height: 1px; opacity: 0; position: absolute;"></video>
-    
-    <div>System Status: {{ isLoadingModel ? 'Loading Model...' : 'Ready' }}</div>
-    <button @click="toggleMonitoring">Start Focus Cam</button>
-    
+
+  <!-- Debug Panel (NO duplicate videoRef!) -->
+  <div
+    class="debug-panel"
+    style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; font-size: 12px; z-index: 9999;"
+  >
+    <div>System Status: {{ isLoadingModel ? "Loading Model..." : "Ready" }}</div>
+
+    <button @click="toggleMonitoring">
+      {{ isCameraOpen ? "Stop Focus Cam" : "Start Focus Cam" }}
+    </button>
+
     <div style="margin-top: 5px;">
-        <div>EAR (Eyes): {{ ear.toFixed(3) }}</div>
-        <div>MAR (Mouth): {{ mar.toFixed(3) }}</div>
-        <div v-if="isDrowsy" style="color: red; font-weight: bold;">⚠️ DROWSY! (Sleeping)</div>
-        <div v-if="isYawning" style="color: yellow; font-weight: bold;">🥱 YAWNING!</div>
+      <div>EAR (Eyes): {{ (ear ?? 0).toFixed(3) }}</div>
+      <div>MAR (Mouth): {{ (mar ?? 0).toFixed(3) }}</div>
+      <div v-if="isDrowsy" style="color: red; font-weight: bold;">⚠️ DROWSY! (Sleeping)</div>
+      <div v-if="isYawning" style="color: yellow; font-weight: bold;">🥱 YAWNING!</div>
     </div>
-</div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, computed } from "vue";
-import { Editor, EditorContent } from "@tiptap/vue-3";
+import { onBeforeUnmount, ref, computed } from "vue";
+import { EditorContent, useEditor } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useRouter } from "vue-router";
 
-import { useFaceLandmarks } from '../composables/useFaceLandmarks';
-import { useActivityMonitor } from '../composables/useActivityMonitor';
-import { getApiUrl, config } from '../config';
-import { useReadingHistory } from '../composables/useReadingHistory';
+import { useFaceLandmarks } from "../composables/useFaceLandmarks";
+import { useActivityMonitor } from "../composables/useActivityMonitor";
+import { getApiUrl, config } from "../config";
+import { useReadingHistory } from "../composables/useReadingHistory";
 
-// 定义组件名称，用于 keep-alive
-defineOptions({
-  name: 'Editor'
-});
+// keep-alive name
+defineOptions({ name: "Editor" });
 
-// Bind <video ref="videoRef"> in template
-const { 
-  startCamera, 
-  stopCamera, 
-  ear, 
-  mar, 
-  isDrowsy, 
-  isYawning, 
-  isLoadingModel,
-  isCameraOpen 
-} = useFaceLandmarks();
-
+// --- Face / camera ---
+const { startCamera, stopCamera, ear, mar, isDrowsy, isYawning, isLoadingModel, isCameraOpen } =
+  useFaceLandmarks();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const router = useRouter();
 
 // Activity / focus monitoring
 const { isTabHidden, isIdle } = useActivityMonitor();
+
 const focusStatus = computed(() => {
-  if (isTabHidden.value) return 'Distracted (Tab Hidden)';
-  if (isIdle.value) return 'Idle (No Activity)';
-  
+  if (isTabHidden.value) return "Distracted (Tab Hidden)";
+  if (isIdle.value) return "Idle (No Activity)";
+
   if (isCameraOpen.value) {
-    if (isDrowsy.value) return 'Fatigued (Drowsy)';
-    if (isYawning.value) return 'Fatigued (Yawning)';
+    if (isDrowsy.value) return "Fatigued (Drowsy)";
+    if (isYawning.value) return "Fatigued (Yawning)";
   }
-  
-  return 'Focused';
+  return "Focused";
 });
-// 计算状态颜色
+
 const focusStatusColor = computed(() => {
   switch (focusStatus.value) {
-    case 'Focused': return 'bg-green-500'; // 需要对应的 CSS 类
-    case 'Fatigued (Drowsy)': 
-    case 'Fatigued (Yawning)': return 'bg-red-500';
-    default: return 'bg-yellow-500';
+    case "Focused":
+      return "bg-green-500";
+    case "Fatigued (Drowsy)":
+    case "Fatigued (Yawning)":
+      return "bg-red-500";
+    default:
+      return "bg-yellow-500";
   }
 });
 
-
-// Camera toggle control
 const toggleMonitoring = () => {
-    if (isCameraOpen.value) {
-        stopCamera();
-    } else {
-        if (videoRef.value) {
-            startCamera(videoRef.value);
-        }
-    }
+  if (isCameraOpen.value) {
+    stopCamera();
+    return;
+  }
+  const videoEl = videoRef.value;
+  if (videoEl) startCamera(videoEl);
 };
 
-
+// --- Types ---
 interface Suggestion {
   text: string;
   explain: string;
@@ -230,7 +224,7 @@ interface LogicIssue {
   location: string;
   description: string;
   severity: "high" | "medium" | "low";
-  example_from_ielts?: string;  // 真题举例
+  example_from_ielts?: string;
 }
 
 interface WritingProfile {
@@ -256,16 +250,37 @@ interface LogicAnalysisResponse {
 const { getReadingHistory } = useReadingHistory();
 
 // --- Reactive state ---
-const editor = ref<Editor | null>(null);
 const suggestions = ref<Suggestion[]>([]);
 const rewrittenData = ref<RewriteResponse | null>(null);
 const logicAnalysis = ref<LogicAnalysisResponse | null>(null);
 const isAnalyzing = ref(false);
-const isEmpty = computed(() => !editor.value || editor.value.isEmpty);
 
 // --- Debounce control for suggestion requests ---
 let typingTimer: number | undefined;
 let lastSentText = "";
+
+// Handle editor update with debounce
+function handleEditorUpdate() {
+  if (typingTimer) window.clearTimeout(typingTimer);
+  typingTimer = window.setTimeout(sendSuggestionRequest, 600);
+}
+
+// IMPORTANT: create editor at top-level (stable)
+const editor = useEditor({
+  extensions: [
+    StarterKit.configure({
+      heading: false,
+      codeBlock: false,
+    }),
+    Placeholder.configure({
+      placeholder: "Start writing in English here...",
+    }),
+  ],
+  content: "",
+  onUpdate: handleEditorUpdate,
+});
+
+const isEmpty = computed(() => !editor.value || editor.value.isEmpty);
 
 // Send suggestion request (debounced + avoid duplicates)
 async function sendSuggestionRequest() {
@@ -281,14 +296,14 @@ async function sendSuggestionRequest() {
 
   try {
     const readEssayIds = getReadingHistory();
-    
+
     const response = await fetch(getApiUrl(config.api.endpoints.suggest), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        text, 
+      body: JSON.stringify({
+        text,
         cursor: null,
-        read_essay_ids: readEssayIds.length > 0 ? readEssayIds : null
+        read_essay_ids: readEssayIds.length > 0 ? readEssayIds : null,
       }),
     });
 
@@ -305,22 +320,10 @@ async function sendSuggestionRequest() {
   }
 }
 
-// Handle editor update with debounce
-function handleEditorUpdate() {
-  if (typingTimer) {
-    window.clearTimeout(typingTimer);
-  }
-  typingTimer = window.setTimeout(sendSuggestionRequest, 600);
-}
-
 // Apply suggestion at cursor
 function applySuggestion(text: string) {
   if (!editor.value) return;
-  editor.value
-    .chain()
-    .focus()
-    .insertContent(text + " ")
-    .run();
+  editor.value.chain().focus().insertContent(text + " ").run();
   suggestions.value = [];
 }
 
@@ -329,12 +332,14 @@ function clearSuggestions() {
 }
 
 // Sentence rewrite feature
-let lastSelectedText = "";
-
 function onTextSelect() {
-  const selectedText = window.getSelection()?.toString().trim();
-  if (selectedText && selectedText.length > 3) {
-    lastSelectedText = selectedText;
+  if (!editor.value) return;
+
+  const { from, to } = editor.value.state.selection;
+  if (from === to) return;
+
+  const selectedText = editor.value.state.doc.textBetween(from, to, " ").trim();
+  if (selectedText.length > 3) {
     rewriteSentence(selectedText);
   }
 }
@@ -366,68 +371,27 @@ async function rewriteSentence(selectedText: string) {
 
 function applyRewrittenSentence() {
   if (!editor.value || !rewrittenData.value) return;
-  
-  // Check if there's a current selection in the editor
+
   const { from, to } = editor.value.state.selection;
   const hasSelection = from !== to;
-  
+
   if (hasSelection) {
-    // Replace the currently selected text
-    editor.value
-      .chain()
-      .focus()
-      .deleteSelection()
-      .insertContent(rewrittenData.value.rewritten)
-      .run();
-  } else if (lastSelectedText) {
-    // Try to find and replace the last selected text
-    const editorText = editor.value.getText();
-    const startIndex = editorText.indexOf(lastSelectedText);
-    
-    if (startIndex !== -1) {
-      // Calculate positions in the editor
-      const fromPos = startIndex;
-      const toPos = startIndex + lastSelectedText.length;
-      
-      // Replace using TipTap's transaction
-      editor.value
-        .chain()
-        .focus()
-        .setTextSelection({ from: fromPos, to: toPos })
-        .deleteSelection()
-        .insertContent(rewrittenData.value.rewritten)
-        .run();
-    } else {
-      // If we can't find the exact text, just insert at cursor
-      editor.value
-        .chain()
-        .focus()
-        .insertContent(rewrittenData.value.rewritten + " ")
-        .run();
-    }
+    editor.value.chain().focus().deleteSelection().insertContent(rewrittenData.value.rewritten).run();
   } else {
-    // Fallback: insert at cursor position
-    editor.value
-      .chain()
-      .focus()
-      .insertContent(rewrittenData.value.rewritten + " ")
-      .run();
+    editor.value.chain().focus().insertContent(rewrittenData.value.rewritten + " ").run();
   }
-  
-  // Clear the rewrite panel after applying
+
   rewrittenData.value = null;
-  lastSelectedText = "";
 }
 
 function clearRewrittenSentence() {
   rewrittenData.value = null;
-  lastSelectedText = "";
 }
 
 // Logic analysis feature
 async function analyzeLogic() {
   if (!editor.value || isEmpty.value) return;
-  
+
   const text = editor.value.getText().trim();
   if (text.length < 20) {
     alert("Please enter at least 20 characters before analysis.");
@@ -444,9 +408,7 @@ async function analyzeLogic() {
       body: JSON.stringify({ text }),
     });
 
-    if (!response.ok) {
-      throw new Error("Analysis request failed");
-    }
+    if (!response.ok) throw new Error("Analysis request failed");
 
     const data = await response.json();
     logicAnalysis.value = data;
@@ -461,15 +423,14 @@ async function analyzeLogic() {
   }
 }
 
-// Manually generate practice tasks based on current profile and (optional) latest article
+// Manually generate practice tasks
 async function generatePracticeTasks() {
   if (!editor.value) return;
   const text = editor.value.getText().trim();
 
-  // 跳转到新路由，传递文本参数
   router.push({
-    path: '/generate-tasks',
-    query: { text: text }
+    path: "/generate-tasks",
+    query: { text },
   });
 }
 
@@ -483,32 +444,9 @@ function getScoreClass(score: number): string {
   return "score-low";
 }
 
-
-// --- Lifecycle ---
-onMounted(() => {
-  editor.value = new Editor({
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        codeBlock: false,
-      }),
-      Placeholder.configure({
-        placeholder: "Start writing in English here...",
-      }),
-    ],
-    content: "",
-    onUpdate: handleEditorUpdate,
-  }); // ✅ 去掉 as Editor 类型断言
-});
-
 onBeforeUnmount(() => {
-  if (editor.value) {
-    editor.value.destroy();
-  }
-  if (typingTimer) {
-    window.clearTimeout(typingTimer);
-  }
-  // 停止摄像头，防止内存泄漏
+  editor.value?.destroy();
+  if (typingTimer) window.clearTimeout(typingTimer);
   stopCamera();
 });
 </script>
@@ -692,7 +630,7 @@ onBeforeUnmount(() => {
 
 .apply-rewrite-btn {
   padding: 8px 16px;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   border: none;
   border-radius: 6px;
@@ -745,7 +683,6 @@ onBeforeUnmount(() => {
   border-top: 1px solid #e5e7eb;
   padding: 8px 10px;
   background: #f9fafb;
-  /* Make logic analysis panel scrollable and occupy more vertical space */
   max-height: 480px;
   overflow-y: auto;
 }
@@ -783,11 +720,9 @@ onBeforeUnmount(() => {
 .score-high {
   color: #059669;
 }
-
 .score-medium {
   color: #d97706;
 }
-
 .score-low {
   color: #dc2626;
 }
@@ -795,7 +730,6 @@ onBeforeUnmount(() => {
 .logic-issues {
   margin-bottom: 8px;
 }
-
 
 .logic-issue-item {
   padding: 12px 14px;
@@ -919,7 +853,7 @@ onBeforeUnmount(() => {
   padding: 6px 12px;
   border-radius: 4px;
   border: none;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   cursor: pointer;
   margin-top: 8px;
@@ -935,7 +869,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background: #f0fdf4; /* 浅绿色背景 */
+  background: #f0fdf4;
   border-bottom: 1px solid #dcfce7;
   font-size: 13px;
   color: #166534;
@@ -943,7 +877,7 @@ onBeforeUnmount(() => {
 }
 
 .focus-status-bar.status-warning {
-  background: #fef2f2; /* 浅红色警告 */
+  background: #fef2f2;
   color: #991b1b;
   border-bottom-color: #fee2e2;
 }
@@ -958,13 +892,19 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #22c55e; /* 默认绿 */
+  background-color: #22c55e;
 }
 
-/* 动态类名对应的颜色 */
-.bg-green-500 { background-color: #22c55e; }
-.bg-yellow-500 { background-color: #eab308; }
-.bg-red-500 { background-color: #ef4444; }
+/* dynamic colors */
+.bg-green-500 {
+  background-color: #22c55e;
+}
+.bg-yellow-500 {
+  background-color: #eab308;
+}
+.bg-red-500 {
+  background-color: #ef4444;
+}
 
 .toggle-btn {
   background: white;
@@ -981,5 +921,4 @@ onBeforeUnmount(() => {
   opacity: 0.7;
   font-size: 11px;
 }
-
 </style>

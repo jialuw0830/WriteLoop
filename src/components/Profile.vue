@@ -90,7 +90,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useAuth } from '../composables/useAuth';
 import { useReadingHistory } from '../composables/useReadingHistory';
-import { useTaskHistory, TaskHistoryItem } from '../composables/useTaskHistory';
+import { useTaskHistory, type TaskHistoryItem } from '../composables/useTaskHistory';
 import { getApiUrl, config } from '../config';
 
 const { user, fetchCurrentUser } = useAuth();
@@ -139,7 +139,7 @@ async function loadReadingHistory() {
     );
     readingHistory.value = readingHistoryIds.value.map((id) => ({
       id,
-      title: essayMap.get(id),
+      title: essayMap.get(id) as string | undefined,
     }));
   } catch (error) {
     console.error('Failed to load reading history', error);
