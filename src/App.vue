@@ -8,6 +8,13 @@
       <nav class="header-nav">
         <router-link to="/" class="nav-link">Editor</router-link>
         <router-link to="/essays" class="nav-link">📚 Model Essays</router-link>
+        <div v-if="user" class="user-info">
+          <router-link to="/profile" class="nav-link username-link">
+            {{ user.username }}
+          </router-link>
+          <button @click="handleLogout" class="logout-button">登出</button>
+        </div>
+        <router-link v-else to="/login" class="nav-link">登录</router-link>
       </nav>
     </header>
 
@@ -29,9 +36,23 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuth } from './composables/useAuth';
+import { onMounted } from 'vue';
 
 const route = useRoute();
+const router = useRouter();
+const { user, logout, fetchCurrentUser } = useAuth();
+
+onMounted(async () => {
+  // 如果localStorage中有token，尝试获取用户信息
+  await fetchCurrentUser();
+});
+
+async function handleLogout() {
+  await logout();
+  router.push('/login');
+}
 </script>
 
 <style scoped>
@@ -86,6 +107,35 @@ const route = useRoute();
 .nav-link.router-link-active {
   color: #007bff;
   background: #eff6ff;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 16px;
+}
+
+.username-link {
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.logout-button {
+  padding: 6px 12px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background: #e5e7eb;
+  color: #111827;
 }
 
 .app-title {

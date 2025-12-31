@@ -483,6 +483,7 @@ function getScoreClass(score: number): string {
   return "score-low";
 }
 
+
 // --- Lifecycle ---
 onMounted(() => {
   editor.value = new Editor({
@@ -794,6 +795,7 @@ onBeforeUnmount(() => {
 .logic-issues {
   margin-bottom: 8px;
 }
+
 
 .logic-issue-item {
   padding: 12px 14px;

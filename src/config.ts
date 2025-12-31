@@ -14,6 +14,9 @@ export const config = {
       analyzeLogic: '/analyze-logic',
       generateTasks: '/generate-tasks',
       essays: '/essays',
+      login: '/login',
+      register: '/register',
+      me: '/me',
     },
   },
 } as const;
