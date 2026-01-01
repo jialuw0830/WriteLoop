@@ -76,7 +76,8 @@ function drawRadarChart() {
     ctx.textBaseline = 'middle';
     const labelX = centerX + (radius + 30) * Math.cos(angle);
     const labelY = centerY + (radius + 30) * Math.sin(angle);
-    ctx.fillText(labels[i], labelX, labelY);
+    const label = labels[i] ?? '';
+    ctx.fillText(label, labelX, labelY);
   }
 
   // 绘制数据区域
@@ -88,7 +89,8 @@ function drawRadarChart() {
   ctx.beginPath();
   for (let i = 0; i < 3; i++) {
     const angle = -Math.PI / 2 + i * angleStep;
-    const value = Math.max(0, Math.min(100, values[i]));
+    const rawValue = values[i] ?? 0;
+    const value = Math.max(0, Math.min(100, rawValue));
     const r = (radius * value) / 100;
     const x = centerX + r * Math.cos(angle);
     const y = centerY + r * Math.sin(angle);
@@ -106,7 +108,8 @@ function drawRadarChart() {
   ctx.fillStyle = '#6366f1';
   for (let i = 0; i < 3; i++) {
     const angle = -Math.PI / 2 + i * angleStep;
-    const value = Math.max(0, Math.min(100, values[i]));
+    const rawValue = values[i] ?? 0;
+    const value = Math.max(0, Math.min(100, rawValue));
     const r = (radius * value) / 100;
     const x = centerX + r * Math.cos(angle);
     const y = centerY + r * Math.sin(angle);
@@ -145,5 +148,4 @@ canvas {
   display: block;
 }
 </style>
-
 

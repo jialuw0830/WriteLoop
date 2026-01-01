@@ -11,10 +11,7 @@ logs/
 log.*
 !.gitkeep
 
-# --- Output / Build ---
-dist/
-dist-ssr/
-*.local
+
 
 # --- Environment Variables ---
 .env
