@@ -21,6 +21,35 @@
       <div class="profile-sections">
         <section class="profile-section">
           <div class="section-header">
+            <h3>用户画像雷达图</h3>
+          </div>
+          <div v-if="profileData.has_data" class="radar-section">
+            <RadarChart
+              :ttr="profileData.ttr"
+              :mlu="profileData.mlu"
+              :logic-score="profileData.logic_score"
+              :size="300"
+            />
+            <div class="radar-legend">
+              <div class="legend-item">
+                <span class="legend-label">TTR (词汇丰富度):</span>
+                <span class="legend-value">{{ Math.round(profileData.ttr) }}分</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-label">MLU (句法复杂度):</span>
+                <span class="legend-value">{{ Math.round(profileData.mlu) }}分</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-label">Logic Score (逻辑连贯性):</span>
+                <span class="legend-value">{{ Math.round(profileData.logic_score) }}分</span>
+              </div>
+            </div>
+          </div>
+          <p v-else class="empty-text">暂无画像数据，完成一次逻辑分析后即可查看</p>
+        </section>
+
+        <section class="profile-section">
+          <div class="section-header">
             <h3>最近任务</h3>
             <button
               v-if="taskHistory.length"
@@ -92,20 +121,36 @@ import { useAuth } from '../composables/useAuth';
 import { useReadingHistory } from '../composables/useReadingHistory';
 import { useTaskHistory, type TaskHistoryItem } from '../composables/useTaskHistory';
 import { getApiUrl, config } from '../config';
+import RadarChart from './RadarChart.vue';
 
-const { user, fetchCurrentUser } = useAuth();
+const { user, fetchCurrentUser, getAuthHeaders } = useAuth();
 const { getReadingHistory, clearHistory } = useReadingHistory();
 const { getTaskHistory, clearTaskHistory: clearTaskHistoryStorage } = useTaskHistory();
 
 const taskHistory = ref<TaskHistoryItem[]>([]);
 const readingHistoryIds = ref<number[]>([]);
 const readingHistory = ref<Array<{ id: number; title?: string }>>([]);
+const profileData = ref<{
+  ttr: number;
+  mlu: number;
+  logic_score: number;
+  profile_data: any;
+  has_data: boolean;
+  updated_at?: string;
+}>({
+  ttr: 0,
+  mlu: 0,
+  logic_score: 0,
+  profile_data: {},
+  has_data: false
+});
 
 onMounted(async () => {
   await fetchCurrentUser();
   taskHistory.value = getTaskHistory();
   readingHistoryIds.value = getReadingHistory();
   await loadReadingHistory();
+  await loadUserProfile();
 });
 
 const initials = computed(() => {
@@ -156,6 +201,19 @@ function clearReadingHistory() {
 function clearTaskHistory() {
   clearTaskHistoryStorage();
   taskHistory.value = [];
+}
+
+async function loadUserProfile() {
+  try {
+    const response = await fetch(getApiUrl('/profile'), {
+      headers: getAuthHeaders(),
+    });
+    if (response.ok) {
+      profileData.value = await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to load user profile', error);
+  }
 }
 </script>
 
@@ -380,6 +438,43 @@ function clearTaskHistory() {
   margin: 0;
   font-size: 13px;
   color: #9ca3af;
+}
+
+.radar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.radar-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.legend-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.legend-label {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.legend-value {
+  font-size: 16px;
+  color: #6366f1;
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {

@@ -161,6 +161,7 @@ import { useFaceLandmarks } from "../composables/useFaceLandmarks";
 import { useActivityMonitor } from "../composables/useActivityMonitor";
 import { getApiUrl, config } from "../config";
 import { useReadingHistory } from "../composables/useReadingHistory";
+import { useAuth } from "../composables/useAuth";
 
 // keep-alive name
 defineOptions({ name: "Editor" });
@@ -171,6 +172,7 @@ const { startCamera, stopCamera, ear, mar, isDrowsy, isYawning, isLoadingModel, 
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const router = useRouter();
+const { getAuthHeaders } = useAuth();
 
 // Activity / focus monitoring
 const { isTabHidden, isIdle } = useActivityMonitor();
@@ -404,7 +406,10 @@ async function analyzeLogic() {
   try {
     const response = await fetch(getApiUrl(config.api.endpoints.analyzeLogic), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
+      },
       body: JSON.stringify({ text }),
     });
 
