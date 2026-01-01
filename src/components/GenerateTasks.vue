@@ -85,6 +85,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { getApiUrl, config } from '../config';
+import { useAuth } from '../composables/useAuth';
 import { useTaskHistory } from '../composables/useTaskHistory';
 
 interface PracticeTask {
@@ -96,6 +97,7 @@ interface PracticeTask {
 }
 
 const route = useRoute();
+const { getAuthHeaders } = useAuth();
 const { addTaskHistory } = useTaskHistory();
 
 const inputText = ref("");
@@ -148,7 +150,7 @@ async function generatePracticeTasks() {
   try {
     const response = await fetch(getApiUrl(config.api.endpoints.generateTasks), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ text }),
     });
 

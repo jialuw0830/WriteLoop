@@ -162,6 +162,11 @@ import { useActivityMonitor } from "../composables/useActivityMonitor";
 import { getApiUrl, config } from "../config";
 import { useReadingHistory } from "../composables/useReadingHistory";
 import { useAuth } from "../composables/useAuth";
+import {
+  LogicBreaksExtension,
+  buildLogicBreakDecorations,
+  logicBreaksKey,
+} from "../extensions/logicBreaks";
 
 // keep-alive name
 defineOptions({ name: "Editor" });
@@ -260,11 +265,17 @@ const isAnalyzing = ref(false);
 // --- Debounce control for suggestion requests ---
 let typingTimer: number | undefined;
 let lastSentText = "";
+let logicBreakTimer: number | undefined;
+let lastBreaksText = "";
+let breaksController: AbortController | null = null;
 
 // Handle editor update with debounce
 function handleEditorUpdate() {
   if (typingTimer) window.clearTimeout(typingTimer);
   typingTimer = window.setTimeout(sendSuggestionRequest, 600);
+
+  if (logicBreakTimer) window.clearTimeout(logicBreakTimer);
+  logicBreakTimer = window.setTimeout(sendLogicBreakAnalysis, 2000);
 }
 
 // IMPORTANT: create editor at top-level (stable)
@@ -277,6 +288,7 @@ const editor = useEditor({
     Placeholder.configure({
       placeholder: "Start writing in English here...",
     }),
+    LogicBreaksExtension,
   ],
   content: "",
   onUpdate: handleEditorUpdate,
@@ -331,6 +343,117 @@ function applySuggestion(text: string) {
 
 function clearSuggestions() {
   suggestions.value = [];
+}
+
+function splitSentencesWithOffsets(text: string) {
+  const results: Array<{ text: string; start: number; end: number }> = [];
+  const regex = /[^.!?]+[.!?]+|[^.!?]+$/g;
+  for (const match of text.matchAll(regex)) {
+    const raw = match[0];
+    if (!raw) continue;
+    const leading = raw.search(/\S|$/);
+    const trimmed = raw.trimEnd();
+    const trailing = raw.length - trimmed.length;
+    const start = (match.index ?? 0) + leading;
+    const end = (match.index ?? 0) + raw.length - trailing;
+    const sentence = raw.trim();
+    if (sentence.length) {
+      results.push({ text: sentence, start, end });
+    }
+  }
+  return results;
+}
+
+function getSentenceRangesFromDoc() {
+  if (!editor.value) return [];
+  const ranges: Array<{ from: number; to: number; text: string }> = [];
+
+  editor.value.state.doc.descendants((node, pos) => {
+    if (!node.isTextblock) return;
+    const text = node.textContent || "";
+    if (!text.trim()) return;
+
+    const sentences = splitSentencesWithOffsets(text);
+    sentences.forEach((sentence) => {
+      const from = pos + 1 + sentence.start;
+      const to = pos + 1 + sentence.end;
+      if (from < to) {
+        ranges.push({ from, to, text: sentence.text });
+      }
+    });
+  });
+
+  return ranges;
+}
+
+function updateLogicBreakDecorations(
+  ranges: Array<{ from: number; to: number; reason?: string }>
+) {
+  if (!editor.value) return;
+  const decorations = buildLogicBreakDecorations(editor.value.state.doc, ranges);
+  const tr = editor.value.state.tr.setMeta(logicBreaksKey, decorations);
+  editor.value.view.dispatch(tr);
+}
+
+async function sendLogicBreakAnalysis() {
+  if (!editor.value) return;
+  const text = editor.value.getText().trim();
+  if (text.length < 30 || text === lastBreaksText) {
+    updateLogicBreakDecorations([]);
+    return;
+  }
+
+  const sentenceRanges = getSentenceRangesFromDoc();
+  if (sentenceRanges.length < 2) {
+    updateLogicBreakDecorations([]);
+    return;
+  }
+
+  lastBreaksText = text;
+
+  if (breaksController) {
+    breaksController.abort();
+  }
+  breaksController = new AbortController();
+
+  try {
+    const response = await fetch(getApiUrl(config.api.endpoints.analyzeBreaks), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ sentences: sentenceRanges.map((s) => s.text) }),
+      signal: breaksController.signal,
+    });
+
+    if (!response.ok) {
+      updateLogicBreakDecorations([]);
+      return;
+    }
+
+    const data = await response.json();
+    const breaks = Array.isArray(data.breaks) ? data.breaks : [];
+    const ranges = breaks
+      .map((item: { index?: number; reason?: string }) => {
+        const idx = item.index ?? -1;
+        if (idx < 0 || idx >= sentenceRanges.length) return null;
+        const range = sentenceRanges[idx];
+        if (!range) return null;
+        return {
+          from: range.from,
+          to: range.to,
+          reason: item.reason,
+        };
+      })
+      .filter(Boolean) as Array<{ from: number; to: number; reason?: string }>;
+
+    updateLogicBreakDecorations(ranges);
+  } catch (error) {
+    if ((error as Error).name !== "AbortError") {
+      console.error("Failed to analyze logic breaks:", error);
+    }
+  }
 }
 
 // Sentence rewrite feature
@@ -452,6 +575,8 @@ function getScoreClass(score: number): string {
 onBeforeUnmount(() => {
   editor.value?.destroy();
   if (typingTimer) window.clearTimeout(typingTimer);
+  if (logicBreakTimer) window.clearTimeout(logicBreakTimer);
+  if (breaksController) breaksController.abort();
   stopCamera();
 });
 </script>
@@ -519,6 +644,22 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   line-height: 1.6;
   font-size: 16px;
+}
+
+.editor-content :deep(.logic-break) {
+  text-decoration: underline wavy #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 3px;
+}
+
+.editor-content :deep(.logic-break-dot) {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  vertical-align: middle;
 }
 
 .editor-content :deep(strong) {

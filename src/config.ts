@@ -12,6 +12,7 @@ export const config = {
       suggest: '/suggest',
       rewrite: '/rewrite',
       analyzeLogic: '/analyze-logic',
+      analyzeBreaks: '/analyze-breaks',
       generateTasks: '/generate-tasks',
       essays: '/essays',
       login: '/login',
@@ -27,4 +28,3 @@ export const config = {
 export function getApiUrl(endpoint: string): string {
   return `${config.api.baseURL}${endpoint}`;
 }
-
