@@ -6,7 +6,7 @@
           <span class="dot"></span>
           <span class="dot"></span>
           <span class="dot"></span>
-          <span class="title">IELTS Model Essays</span>
+          <span class="title">IELTS Essays</span>
         </div>
         <div class="header-actions">
           <button 
@@ -23,7 +23,7 @@
       <!-- All essays section -->
       <div class="essays-section">
         <div class="section-title">
-          All IELTS Model Essays
+          All IELTS Essays
           <span class="essay-count">({{ essays.length }})</span>
         </div>
         <div class="essay-grid">

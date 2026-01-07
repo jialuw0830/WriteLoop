@@ -14,7 +14,7 @@
 
       <div class="profile-actions">
         <router-link to="/" class="action-button">回到编辑器</router-link>
-        <router-link to="/essays" class="action-button ghost">Model Essays</router-link>
+        <router-link to="/essays" class="action-button ghost">Essays</router-link>
         <router-link to="/generate-tasks" class="action-button ghost">练习任务</router-link>
       </div>
 
@@ -160,6 +160,14 @@ const profileData = ref<{
   profile_data: {},
   has_data: false
 });
+const practiceHistory = ref<Array<{
+  id: number;
+  logic_score: number;
+  ttr: number;
+  mlu: number;
+  created_at: string;
+  overall_score: number;
+}>>([]);
 
 onMounted(async () => {
   await fetchCurrentUser();
@@ -167,6 +175,7 @@ onMounted(async () => {
   readingHistoryIds.value = getReadingHistory();
   await loadReadingHistory();
   await loadUserProfile();
+  await loadPracticeHistory();
 });
 
 const initials = computed(() => {
@@ -191,9 +200,23 @@ function formatDateShort(value: string) {
 }
 
 const practiceTrend = computed(() => {
-  const history = [...taskHistory.value].reverse();
-  const labels = history.map((item) => formatDateShort(item.created_at));
-  const values = history.map((item) => (item.tasks ? item.tasks.length : 0));
+  // 使用真实的练习历史数据，按时间排序
+  const history = [...practiceHistory.value].sort((a, b) => {
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+  
+  // 生成标签（显示日期或序号）
+  const labels = history.map((item, index) => {
+    // 如果记录较多，显示序号；否则显示日期
+    if (history.length > 10) {
+      return `#${index + 1}`;
+    }
+    return formatDateShort(item.created_at);
+  });
+  
+  // 使用综合分数作为折线图的值（也可以改为 logic_score, ttr, mlu）
+  const values = history.map((item) => Math.round(item.overall_score || item.logic_score));
+  
   return { labels, values };
 });
 
@@ -244,6 +267,21 @@ async function loadUserProfile() {
     }
   } catch (error) {
     console.error('Failed to load user profile', error);
+  }
+}
+
+async function loadPracticeHistory() {
+  try {
+    const response = await fetch(getApiUrl('/practice-history'), {
+      headers: getAuthHeaders(),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      practiceHistory.value = data.history || [];
+    }
+  } catch (error) {
+    console.error('Failed to load practice history', error);
+    practiceHistory.value = [];
   }
 }
 </script>

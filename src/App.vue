@@ -7,7 +7,7 @@
       </div>
       <nav class="header-nav">
         <router-link to="/" class="nav-link">Editor</router-link>
-        <router-link to="/essays" class="nav-link">📚 Model Essays</router-link>
+        <router-link to="/essays" class="nav-link">Essays</router-link>
         <div v-if="user" class="user-info">
           <router-link to="/profile" class="nav-link username-link">
             {{ user.username }}
