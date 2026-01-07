@@ -10,54 +10,70 @@
     
     <div v-else-if="logicTree" class="logic-tree-content">
       <div class="tree-wrapper">
-        <!-- Root: Thesis -->
-        <div v-if="logicTree.thesis" class="tree-level">
+        <!-- Root: Thesis (Level 0) -->
+        <div v-if="logicTree.thesis" class="tree-level level-0">
           <div class="tree-node thesis-node">
             <div class="node-label">Thesis</div>
-            <div class="node-content">{{ logicTree.thesis }}</div>
+            <div class="node-content">{{ thesisText }}</div>
           </div>
         </div>
 
-        <!-- Branch connector from thesis -->
-        <div v-if="logicTree.thesis && logicTree.mainPoints && logicTree.mainPoints.length > 0" class="tree-connector thesis-connector"></div>
+        <!-- Connector from Thesis to Main Points -->
+        <div v-if="logicTree.thesis && limitedMainPoints.length > 0" class="tree-connector vertical thesis-to-main"></div>
 
-        <!-- Level 1: Main Points -->
-        <div v-if="logicTree.mainPoints && logicTree.mainPoints.length > 0" class="tree-level main-points-level">
-          <div class="tree-branches">
-            <div v-for="(point, index) in logicTree.mainPoints" :key="index" class="tree-branch">
-              <!-- Branch connector -->
-              <div v-if="logicTree.thesis || index > 0" class="branch-connector"></div>
-              
-              <!-- Main Point Node -->
-              <div class="tree-node main-point-node">
-                <div class="node-number">{{ index + 1 }}</div>
-                <div class="node-content">
-                  <div class="point-text">{{ point.text }}</div>
-                </div>
+        <!-- Level 1: Main Points (max 3) -->
+        <div v-if="limitedMainPoints.length > 0" class="tree-level level-1" :class="`points-${limitedMainPoints.length}`">
+          <!-- Horizontal connector line for multiple points -->
+          <div v-if="limitedMainPoints.length > 1" class="horizontal-connector"></div>
+          
+          <div
+            v-for="(point, index) in limitedMainPoints"
+            :key="index"
+            class="tree-branch"
+            :class="`branch-${index + 1}`"
+          >
+            <!-- Vertical connector from horizontal line -->
+            <div v-if="limitedMainPoints.length > 1" class="vertical-connector branch-connector"></div>
+            
+            <!-- Main Point Node -->
+            <div class="tree-node main-point-node">
+              <div class="node-number">{{ index + 1 }}</div>
+              <div class="node-content">
+                <div class="point-text">{{ point.text }}</div>
               </div>
+            </div>
 
-              <!-- Evidence (Level 2) -->
-              <div v-if="point.evidence && point.evidence.length > 0" class="evidence-level">
-                <div class="evidence-connector"></div>
-                <div class="evidence-nodes">
-                  <div v-for="(ev, evIndex) in point.evidence" :key="evIndex" class="tree-node evidence-node">
-                    <div class="evidence-marker">•</div>
-                    <div class="evidence-text">{{ ev }}</div>
-                  </div>
+            <!-- Connector from Main Point to Evidence -->
+            <div v-if="getLimitedEvidence(point).length > 0" class="tree-connector vertical main-to-evidence"></div>
+
+            <!-- Level 2: Evidence (max 3 per main point) -->
+            <div v-if="getLimitedEvidence(point).length > 0" class="evidence-level" :class="`evidence-${getLimitedEvidence(point).length}`">
+              <!-- Horizontal connector for multiple evidence -->
+              <div v-if="getLimitedEvidence(point).length > 1" class="horizontal-connector evidence-horizontal"></div>
+              
+              <div
+                v-for="(ev, evIndex) in getLimitedEvidence(point)"
+                :key="evIndex"
+                class="evidence-branch"
+              >
+                <div v-if="getLimitedEvidence(point).length > 1" class="vertical-connector evidence-connector"></div>
+                <div class="tree-node evidence-node">
+                  <div class="evidence-marker">•</div>
+                  <div class="evidence-text">{{ ev }}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Branch connector to conclusion -->
-        <div v-if="logicTree.mainPoints && logicTree.mainPoints.length > 0 && logicTree.conclusion" class="tree-connector conclusion-connector"></div>
+        <!-- Connector from Main Points to Conclusion -->
+        <div v-if="limitedMainPoints.length > 0 && logicTree.conclusion" class="tree-connector vertical main-to-conclusion"></div>
 
-        <!-- Conclusion -->
-        <div v-if="logicTree.conclusion" class="tree-level">
+        <!-- Conclusion (Bottom) -->
+        <div v-if="logicTree.conclusion" class="tree-level level-conclusion">
           <div class="tree-node conclusion-node">
             <div class="node-label">Conclusion</div>
-            <div class="node-content">{{ logicTree.conclusion }}</div>
+            <div class="node-content">{{ conclusionText }}</div>
           </div>
         </div>
 
@@ -86,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { getApiUrl } from '../config';
 import { useAuth } from '../composables/useAuth';
 
@@ -113,6 +129,29 @@ const { getAuthHeaders } = useAuth();
 
 const logicTree = ref<LogicTree | null>(null);
 const isLoading = ref(false);
+
+// Limit main points to max 3
+const limitedMainPoints = computed(() => {
+  if (!logicTree.value?.mainPoints) return [];
+  return logicTree.value.mainPoints.slice(0, 3);
+});
+
+// Limit evidence to max 3 per main point
+function getLimitedEvidence(point: { text: string; evidence?: string[] }) {
+  if (!point.evidence) return [];
+  return point.evidence.slice(0, 3);
+}
+
+// Truncate long texts for display
+const thesisText = computed(() => {
+  const text = logicTree.value?.thesis || '';
+  return text.length > 100 ? text.substring(0, 100) + '...' : text;
+});
+
+const conclusionText = computed(() => {
+  const text = logicTree.value?.conclusion || '';
+  return text.length > 100 ? text.substring(0, 100) + '...' : text;
+});
 
 async function generateLogicTree(text: string) {
   if (!text || text.trim().length < 20) {
@@ -175,10 +214,12 @@ onMounted(() => {
 
 .tree-wrapper {
   position: relative;
-  min-width: 100%;
+  min-width: 600px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 20px 0;
 }
 
 /* Tree Levels */
@@ -187,96 +228,141 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   position: relative;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
 }
 
-.main-points-level {
-  margin-bottom: 32px;
+.level-0 {
+  margin-bottom: 10px;
 }
 
-/* Tree Branches Container */
-.tree-branches {
+.level-1 {
   display: flex;
   justify-content: center;
   gap: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 40px;
+  position: relative;
   width: 100%;
-  position: relative;
 }
 
-.tree-branch {
-  flex: 1;
-  min-width: 200px;
-  max-width: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
+.level-1.points-1 {
+  justify-content: center;
 }
 
-/* Connectors */
+.level-1.points-2 {
+  justify-content: space-around;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.level-1.points-3 {
+  justify-content: space-between;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.level-conclusion {
+  margin-top: 30px;
+  margin-bottom: 0;
+}
+
+/* Tree Connectors */
 .tree-connector {
-  width: 2px;
-  height: 24px;
-  background: #d1d5db;
-  margin: 0 auto 8px;
   position: relative;
-}
-
-.tree-connector.thesis-connector::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 8px solid #d1d5db;
-}
-
-.branch-connector {
   width: 2px;
+  background: #9ca3af;
+  margin: 0 auto;
+}
+
+.tree-connector.vertical {
+  height: 30px;
+}
+
+.tree-connector.vertical.thesis-to-main {
   height: 20px;
-  background: #d1d5db;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+}
+
+.tree-connector.vertical.main-to-evidence {
+  height: 15px;
+  margin-bottom: 0;
+}
+
+.tree-connector.vertical.main-to-conclusion {
+  height: 25px;
+  margin-bottom: 0;
+}
+
+/* Horizontal connector for multiple branches */
+.horizontal-connector {
+  position: absolute;
+  top: -15px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #9ca3af;
+  z-index: 0;
+}
+
+.evidence-horizontal {
+  top: -15px;
+  background: #c4b5fd;
+}
+
+.vertical-connector {
+  width: 2px;
+  height: 15px;
+  background: #9ca3af;
+  margin: 0 auto 0;
 }
 
 .evidence-connector {
-  width: 2px;
-  height: 16px;
-  background: #e5e7eb;
-  margin: 12px 0 8px;
+  background: #c4b5fd;
+  height: 12px;
+}
+
+/* Tree Branch */
+.tree-branch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+  max-width: 280px;
 }
 
 /* Tree Nodes */
 .tree-node {
   background: #ffffff;
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border: 2px solid #e5e7eb;
   transition: all 0.2s;
   position: relative;
   width: 100%;
   box-sizing: border-box;
+  z-index: 2;
 }
 
 .tree-node:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
 .thesis-node {
   border-color: #3b82f6;
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  max-width: 600px;
+  max-width: 500px;
+  width: 100%;
 }
 
 .conclusion-node {
   border-color: #10b981;
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  max-width: 600px;
+  max-width: 500px;
+  width: 100%;
 }
 
 .main-point-node {
@@ -284,7 +370,38 @@ onMounted(() => {
   background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
   display: flex;
   align-items: flex-start;
+  gap: 10px;
+}
+
+.evidence-level {
+  position: relative;
+  width: 100%;
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
   gap: 12px;
+  min-height: 80px;
+}
+
+.evidence-level.evidence-1 {
+  justify-content: center;
+}
+
+.evidence-level.evidence-2 {
+  justify-content: space-around;
+}
+
+.evidence-level.evidence-3 {
+  justify-content: space-between;
+}
+
+.evidence-branch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .evidence-node {
@@ -292,9 +409,9 @@ onMounted(() => {
   background: #faf5ff;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
   padding: 10px 12px;
+  width: 100%;
 }
 
 .node-label {
@@ -309,21 +426,22 @@ onMounted(() => {
 .node-content {
   font-size: 13px;
   color: #111827;
-  line-height: 1.6;
+  line-height: 1.5;
   word-wrap: break-word;
+  flex: 1;
 }
 
 .node-number {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #6366f1;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   margin-top: 2px;
 }
@@ -331,48 +449,35 @@ onMounted(() => {
 .point-text {
   font-weight: 500;
   color: #1e1b4b;
-}
-
-.evidence-level {
-  width: 100%;
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.evidence-nodes {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
+  font-size: 13px;
 }
 
 .evidence-marker {
   color: #a78bfa;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .evidence-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7280;
-  line-height: 1.5;
+  line-height: 1.4;
   flex: 1;
 }
 
 /* Relationships Section */
 .relationships-section {
-  margin-top: 32px;
+  margin-top: 40px;
   padding-top: 24px;
   width: 100%;
+  border-top: 2px solid #e5e7eb;
 }
 
 .section-divider {
-  height: 1px;
-  background: #e5e7eb;
-  margin-bottom: 16px;
+  display: none;
 }
 
 .section-title {
@@ -418,6 +523,7 @@ onMounted(() => {
   background: #fef3c7;
   border-radius: 6px;
   color: #92400e;
+  font-size: 12px;
 }
 
 .rel-arrow {
@@ -428,16 +534,26 @@ onMounted(() => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .tree-branches {
-    flex-direction: column;
+  .tree-wrapper {
+    min-width: 100%;
   }
   
-  .tree-branch {
-    max-width: 100%;
+  .level-1 {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  
+  .evidence-level {
+    flex-direction: column !important;
+    align-items: center !important;
   }
   
   .tree-node {
-    font-size: 12px;
+    max-width: 100%;
+  }
+  
+  .horizontal-connector {
+    display: none;
   }
 }
 </style>
