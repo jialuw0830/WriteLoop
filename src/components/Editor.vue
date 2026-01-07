@@ -99,7 +99,7 @@
             :class="{ active: showLogicTree }"
             @click="showLogicTree = true"
           >
-            逻辑树
+            Logic Tree
           </button>
         </div>
 
