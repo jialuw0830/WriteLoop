@@ -312,14 +312,19 @@ onMounted(() => {
 
 .vertical-connector {
   width: 2px;
-  height: 15px;
+  height: 20px;
   background: #9ca3af;
-  margin: 0 auto 0;
+  margin: 0;
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: top center;
 }
 
 .evidence-connector {
   background: #c4b5fd;
-  height: 12px;
+  height: 16px;
 }
 
 /* Tree Branch */
@@ -331,6 +336,27 @@ onMounted(() => {
   flex: 1;
   min-width: 200px;
   max-width: 280px;
+  padding-top: 18px;
+}
+
+.level-1.points-2 .branch-1 .branch-connector {
+  transform: translateX(-50%) rotate(-25deg);
+}
+
+.level-1.points-2 .branch-2 .branch-connector {
+  transform: translateX(-50%) rotate(25deg);
+}
+
+.level-1.points-3 .branch-1 .branch-connector {
+  transform: translateX(-50%) rotate(-30deg);
+}
+
+.level-1.points-3 .branch-2 .branch-connector {
+  transform: translateX(-50%) rotate(0deg);
+}
+
+.level-1.points-3 .branch-3 .branch-connector {
+  transform: translateX(-50%) rotate(30deg);
 }
 
 /* Tree Nodes */
@@ -402,6 +428,27 @@ onMounted(() => {
   align-items: center;
   flex: 1;
   min-width: 0;
+  padding-top: 16px;
+}
+
+.evidence-level.evidence-2 .evidence-branch:nth-child(1) .evidence-connector {
+  transform: translateX(-50%) rotate(-22deg);
+}
+
+.evidence-level.evidence-2 .evidence-branch:nth-child(2) .evidence-connector {
+  transform: translateX(-50%) rotate(22deg);
+}
+
+.evidence-level.evidence-3 .evidence-branch:nth-child(1) .evidence-connector {
+  transform: translateX(-50%) rotate(-26deg);
+}
+
+.evidence-level.evidence-3 .evidence-branch:nth-child(2) .evidence-connector {
+  transform: translateX(-50%) rotate(0deg);
+}
+
+.evidence-level.evidence-3 .evidence-branch:nth-child(3) .evidence-connector {
+  transform: translateX(-50%) rotate(26deg);
 }
 
 .evidence-node {
