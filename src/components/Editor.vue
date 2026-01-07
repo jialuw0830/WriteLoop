@@ -85,8 +85,30 @@
       </div>
 
       <!-- Logic analysis area -->
-      <div v-if="logicAnalysis" class="logic-panel">
-        <div class="logic-header">Logic Analysis</div>
+      <div v-if="logicAnalysis || showLogicTree" class="logic-panel">
+        <div class="logic-tabs">
+          <button
+            class="logic-tab"
+            :class="{ active: !showLogicTree }"
+            @click="showLogicTree = false"
+          >
+            Logic Analysis
+          </button>
+          <button
+            class="logic-tab"
+            :class="{ active: showLogicTree }"
+            @click="showLogicTree = true"
+          >
+            逻辑树
+          </button>
+        </div>
+
+        <!-- Logic Analysis View -->
+        <div v-if="!showLogicTree" class="logic-content">
+          <div v-if="!logicAnalysis" class="empty-logic-state">
+            点击 "Analyze Logic" 按钮来分析文本逻辑
+          </div>
+          <div v-else>
 
         <div v-if="logicAnalysis.overall_score !== undefined" class="logic-score-section">
           <div class="logic-score-label">Score</div>
@@ -126,6 +148,13 @@
         <button class="generate-task-btn" @click="generatePracticeTasks">🎯 Generate Practice Tasks</button>
 
         <button @click="clearLogicAnalysis" class="clear-logic-btn">Clear</button>
+          </div>
+        </div>
+
+        <!-- Logic Tree View -->
+        <div v-if="showLogicTree" class="logic-content">
+          <LogicTree :text="editor ? editor.getText() : ''" />
+        </div>
       </div>
     </div>
   </div>
@@ -167,6 +196,7 @@ import {
   buildLogicBreakDecorations,
   logicBreaksKey,
 } from "../extensions/logicBreaks";
+import LogicTree from "./LogicTree.vue";
 
 // keep-alive name
 defineOptions({ name: "Editor" });
@@ -261,6 +291,7 @@ const suggestions = ref<Suggestion[]>([]);
 const rewrittenData = ref<RewriteResponse | null>(null);
 const logicAnalysis = ref<LogicAnalysisResponse | null>(null);
 const isAnalyzing = ref(false);
+const showLogicTree = ref(false);
 
 // --- Debounce control for suggestion requests ---
 let typingTimer: number | undefined;
@@ -538,8 +569,10 @@ async function analyzeLogic() {
 
     if (!response.ok) throw new Error("Analysis request failed");
 
-    const data = await response.json();
-    logicAnalysis.value = data;
+      const data = await response.json();
+      logicAnalysis.value = data;
+      // 自动切换到 Logic Analysis 视图
+      showLogicTree.value = false;
   } catch (error) {
     console.error("Error analyzing logic:", error);
     logicAnalysis.value = {
@@ -564,6 +597,7 @@ async function generatePracticeTasks() {
 
 function clearLogicAnalysis() {
   logicAnalysis.value = null;
+  showLogicTree.value = false;
 }
 
 function getScoreClass(score: number): string {
@@ -1008,6 +1042,68 @@ onBeforeUnmount(() => {
 
 .clear-logic-btn:hover {
   background: #45a049;
+}
+
+.logic-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.logic-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.logic-tab:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.logic-tab.active {
+  color: #1e40af;
+  background: transparent;
+}
+
+.logic-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #1e40af;
+}
+
+.logic-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.logic-tab:disabled:hover {
+  background: transparent;
+  color: #6b7280;
+}
+
+.logic-content {
+  /* 内容区域样式 */
+}
+
+.empty-logic-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .focus-status-bar {
